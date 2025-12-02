@@ -171,6 +171,13 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         ge=1,
         description="The maximum number of output tokens. This is sent to the LLM.",
     )
+    model_real_name: str | None = Field(
+        default=None,
+        description=(
+            "Optional canonical model id for capability lookups when the configured "
+            "model name is proxied or aliased."
+        ),
+    )
     extra_headers: dict[str, str] | None = Field(
         default=None,
         description="Optional HTTP headers to forward to LiteLLM requests.",
@@ -809,11 +816,15 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
     # =========================================================================
     # Capabilities, formatting, and info
     # =========================================================================
+    def _model_name_for_capabilities(self) -> str:
+        """Return canonical name for capability lookups (e.g., vision support)."""
+        return self.model_real_name or self.model
+
     def _init_model_info_and_caps(self) -> None:
         self._model_info = get_litellm_model_info(
             secret_api_key=self.api_key,
             base_url=self.base_url,
-            model=self.model,
+            model=self._model_name_for_capabilities(),
         )
 
         # Context window and max_output_tokens
@@ -873,8 +884,11 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
         # we can go with it, but we will need to keep an eye if model_info is correct for Vertex or other providers  # noqa: E501
         # remove when litellm is updated to fix https://github.com/BerriAI/litellm/issues/5608  # noqa: E501
         # Check both the full model name and the name after proxy prefix for vision support  # noqa: E501
+        model_for_caps = self._model_name_for_capabilities()
         return (
-            supports_vision(self.model)
+            supports_vision(model_for_caps)
+            or supports_vision(model_for_caps.split("/")[-1])
+            or supports_vision(self.model)
             or supports_vision(self.model.split("/")[-1])
             or (
                 self._model_info is not None
