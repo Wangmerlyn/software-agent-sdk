@@ -908,9 +908,10 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
             return False
         # We don't need to look-up model_info, because
         # only Anthropic models need explicit caching breakpoints
-        return self.caching_prompt and get_features(
-            self._model_name_for_capabilities()
-        ).supports_prompt_cache
+        return (
+            self.caching_prompt
+            and get_features(self._model_name_for_capabilities()).supports_prompt_cache
+        )
 
     def uses_responses_api(self) -> bool:
         """Whether this model uses the OpenAI Responses API path."""

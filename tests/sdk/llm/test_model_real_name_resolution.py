@@ -63,3 +63,16 @@ def test_model_real_name_used_for_capabilities(monkeypatch):
     assert "openai/gpt-5-mini" in model_info_calls
     assert "openai/gpt-5-mini" in vision_calls
     assert "openai/gpt-5-mini" in feature_calls
+
+
+def test_model_real_name_with_real_model_info():
+    """Integration-style check using litellm's built-in model info."""
+
+    base = LLM(model="gpt-4o-mini")
+    proxied = LLM(model="proxy/test-renamed-model", model_real_name="gpt-4o-mini")
+
+    # Model info and derived flags should align with the canonical model
+    assert proxied.model_info == base.model_info
+    assert proxied.vision_is_active() == base.vision_is_active()
+    assert proxied.is_caching_prompt_active() == base.is_caching_prompt_active()
+    assert proxied.uses_responses_api() == base.uses_responses_api()
