@@ -26,11 +26,17 @@ class ImageReaderExecutor(ToolExecutor[ImageReaderAction, ImageReaderObservation
         workspace_root: str | None = None,
         max_size_mb: int = DEFAULT_MAX_MB,
     ):
-        self._workspace_root = Path(workspace_root).resolve() if workspace_root else None
+        self._workspace_root = (
+            Path(workspace_root).resolve() if workspace_root else None
+        )
         self._max_size_bytes = max_size_mb * 1024 * 1024
 
-    def __call__(self, *, path: str) -> ImageReaderObservation:
-        resolved = self._resolve_path(path)
+    def __call__(
+        self,
+        action: ImageReaderAction,
+        conversation=None,  # conversation unused; retained for ToolExecutor signature
+    ) -> ImageReaderObservation:
+        resolved = self._resolve_path(action.path)
 
         if not resolved.exists():
             raise FileNotFoundError(f"Image not found: {resolved}")

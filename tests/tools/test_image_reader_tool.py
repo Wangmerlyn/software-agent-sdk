@@ -5,6 +5,7 @@ import base64
 import pytest
 
 from openhands.sdk.llm import ImageContent
+from openhands.tools.image_reader.definition import ImageReaderAction
 from openhands.tools.image_reader.impl import ImageReaderExecutor
 
 
@@ -20,7 +21,7 @@ def test_image_reader_loads_image(tmp_path):
     img_path.write_bytes(img_bytes)
 
     executor = ImageReaderExecutor(workspace_root=str(tmp_path))
-    obs = executor(path="sample.png")
+    obs = executor(ImageReaderAction(path="sample.png"))
 
     assert obs.path == str(img_path.resolve())
     assert obs.mime_type == "image/png"
@@ -39,4 +40,4 @@ def test_image_reader_rejects_outside_workspace(tmp_path):
 
     executor = ImageReaderExecutor(workspace_root=str(tmp_path))
     with pytest.raises(PermissionError):
-        executor(path=str(outside))
+        executor(ImageReaderAction(path=str(outside)))

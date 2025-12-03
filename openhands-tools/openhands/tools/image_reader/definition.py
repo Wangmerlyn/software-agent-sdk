@@ -19,7 +19,6 @@ from openhands.sdk.tool import (
 
 if TYPE_CHECKING:
     from openhands.sdk.conversation.state import ConversationState
-    from openhands.tools.image_reader.impl import ImageReaderExecutor
 
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
@@ -59,18 +58,17 @@ class ImageReaderObservation(Observation):
         ]
 
 
-IMAGE_READER_DESCRIPTION = f"""Load a local image file and return it to the LLM as vision content.
-
-Usage:
-- Provide an absolute path, or a path relative to the current workspace.
-- Supported formats: {', '.join(sorted(IMAGE_EXTENSIONS))}
-- Max file size: {DEFAULT_MAX_MB} MB.
-
-Notes:
-- Use this when you need to inspect screenshots, design assets, or other images
-  that were generated or already exist on disk.
-- This tool is read-only and will not modify files.
-"""
+IMAGE_READER_DESCRIPTION = (
+    "Load a local image file and return it to the LLM as vision content.\n\n"
+    "Usage:\n"
+    "- Provide an absolute path, or a path relative to the current workspace.\n"
+    f"- Supported formats: {', '.join(sorted(IMAGE_EXTENSIONS))}\n"
+    f"- Max file size: {DEFAULT_MAX_MB} MB.\n\n"
+    "Notes:\n"
+    "- Use this when you need to inspect screenshots, design assets, or other "
+    "images that were generated or already exist on disk.\n"
+    "- This tool is read-only and will not modify files."
+)
 
 
 class ImageReaderTool(ToolDefinition[ImageReaderAction, ImageReaderObservation]):
@@ -79,9 +77,9 @@ class ImageReaderTool(ToolDefinition[ImageReaderAction, ImageReaderObservation])
     @classmethod
     def create(
         cls,
-        conv_state: "ConversationState",
+        conv_state: ConversationState,
         max_size_mb: int = DEFAULT_MAX_MB,
-    ) -> Sequence["ImageReaderTool"]:
+    ) -> Sequence[ImageReaderTool]:
         from openhands.tools.image_reader.impl import ImageReaderExecutor
 
         executor = ImageReaderExecutor(
