@@ -1,4 +1,6 @@
 import json
+import shlex
+from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 from openhands.sdk.llm import TextContent
@@ -17,6 +19,46 @@ from openhands.tools.terminal.terminal.terminal_session import TerminalSession
 
 
 logger = get_logger(__name__)
+
+_SPECIAL_CLI_HINTS = {
+    "rg": "terminal:rg",
+    "ripgrep": "terminal:rg",
+}
+
+
+def _looks_like_env_assignment(token: str) -> bool:
+    """Return True if token resembles KEY=VALUE assignment."""
+    if "=" not in token or token.startswith("-"):
+        return False
+    key = token.split("=", 1)[0]
+    return key.isidentifier()
+
+
+def _detect_command_hint(command: str) -> tuple[str | None, list[str] | None]:
+    """Detect special CLI usage (e.g., ripgrep) from a shell command string."""
+    command = command.strip()
+    if not command:
+        return None, None
+
+    try:
+        tokens = shlex.split(command)
+    except ValueError:
+        return None, None
+
+    candidate: str | None = None
+    for tok in tokens:
+        if tok == "sudo":
+            continue
+        if _looks_like_env_assignment(tok):
+            continue
+        candidate = Path(tok).name
+        break
+
+    if candidate is None:
+        return None, tokens or None
+
+    hint = _SPECIAL_CLI_HINTS.get(candidate)
+    return hint, tokens or None
 
 
 class TerminalExecutor(ToolExecutor[TerminalAction, TerminalObservation]):
@@ -193,6 +235,12 @@ class TerminalExecutor(ToolExecutor[TerminalAction, TerminalObservation]):
             except Exception:
                 pass
 
+        # Attach parsed command hint (prototype for UI specialization)
+        tool_hint, argv_hint = _detect_command_hint(action.command)
+        if tool_hint:
+            return observation.model_copy(
+                update={"parsed_tool": tool_hint, "parsed_argv": argv_hint}
+            )
         return observation
 
     def close(self) -> None:

@@ -95,6 +95,16 @@ class TerminalObservation(Observation):
         default_factory=CmdOutputMetadata,
         description="Additional metadata captured from PS1 after command execution.",
     )
+    parsed_tool: str | None = Field(
+        default=None,
+        description=(
+            "Optional hint when the command matches a known CLI (e.g., terminal:rg)."
+        ),
+    )
+    parsed_argv: list[str] | None = Field(
+        default=None,
+        description="Tokenized argv used to detect parsed_tool (if any).",
+    )
     full_output_save_dir: str | None = Field(
         default=None,
         description="Directory where full output files are saved",
