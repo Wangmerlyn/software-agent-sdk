@@ -8,7 +8,9 @@ def test_detect_rg_simple():
 
 
 def test_detect_rg_with_env_and_sudo():
-    hint, argv = _detect_command_hint("RIPGREP_CONFIG_PATH=cfg sudo rg --json pattern .")
+    hint, argv = _detect_command_hint(
+        "RIPGREP_CONFIG_PATH=cfg sudo rg --json pattern ."
+    )
     assert hint == "terminal:rg"
     assert argv and "rg" in argv
 
@@ -40,6 +42,6 @@ def test_detect_empty_or_invalid_command():
     assert hint is None
     assert argv is None
 
-    hint2, argv2 = _detect_command_hint("echo \"unterminated")
+    hint2, argv2 = _detect_command_hint('echo "unterminated')
     assert hint2 is None
     assert argv2 is None

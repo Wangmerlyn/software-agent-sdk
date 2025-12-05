@@ -324,16 +324,41 @@ class TerminalWithHintsTool(TerminalTool):
         terminal_type: Literal["tmux", "subprocess"] | None = None,
         shell_path: str | None = None,
         executor: ToolExecutor | None = None,
+        enable_command_hints: bool = True,
     ) -> Sequence["TerminalWithHintsTool"]:
-        return super().create(
-            conv_state=conv_state,
-            username=username,
-            no_change_timeout_seconds=no_change_timeout_seconds,
-            terminal_type=terminal_type,
-            shell_path=shell_path,
-            executor=executor,
-            enable_command_hints=True,
-        )
+        # Import here to avoid circular imports
+        from openhands.tools.terminal.impl import TerminalExecutor
+
+        working_dir = conv_state.workspace.working_dir
+        if not os.path.isdir(working_dir):
+            raise ValueError(f"working_dir '{working_dir}' is not a valid directory")
+
+        if executor is None:
+            executor = TerminalExecutor(
+                working_dir=working_dir,
+                username=username,
+                no_change_timeout_seconds=no_change_timeout_seconds,
+                terminal_type=terminal_type,
+                shell_path=shell_path,
+                full_output_save_dir=conv_state.env_observation_persistence_dir,
+                enable_command_hints=enable_command_hints,
+            )
+
+        return [
+            cls(
+                action_type=TerminalAction,
+                observation_type=TerminalObservation,
+                description=TOOL_DESCRIPTION,
+                annotations=ToolAnnotations(
+                    title="terminal_with_hints",
+                    readOnlyHint=False,
+                    destructiveHint=True,
+                    idempotentHint=False,
+                    openWorldHint=True,
+                ),
+                executor=executor,
+            )
+        ]
 
 
 register_tool(TerminalWithHintsTool.name, TerminalWithHintsTool)

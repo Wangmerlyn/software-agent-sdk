@@ -1,10 +1,6 @@
 from __future__ import annotations
 
-from __future__ import annotations
-
 import shutil
-
-import pytest
 
 from openhands.tools.terminal import TerminalAction
 from openhands.tools.terminal.impl import TerminalExecutor
