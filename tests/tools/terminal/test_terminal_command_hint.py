@@ -37,6 +37,12 @@ def test_detect_ripgrep_alias():
     assert argv and argv[0] == "ripgrep"
 
 
+def test_detect_pipeline_uses_first_command():
+    hint, argv = _detect_command_hint("cat file.txt | rg foo")
+    assert hint is None  # first command is cat, not special
+    assert argv and argv[0] == "cat"
+
+
 def test_detect_empty_or_invalid_command():
     hint, argv = _detect_command_hint("")
     assert hint is None
