@@ -23,6 +23,7 @@ logger = get_logger(__name__)
 _SPECIAL_CLI_HINTS = {
     "rg": "terminal:rg",
     "ripgrep": "terminal:rg",
+    "grep": "terminal:grep",
 }
 
 

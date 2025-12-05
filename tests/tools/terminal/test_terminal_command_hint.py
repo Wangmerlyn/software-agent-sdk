@@ -31,6 +31,12 @@ def test_detect_rg_full_path():
     assert argv and argv[0].endswith("rg")
 
 
+def test_detect_grep():
+    hint, argv = _detect_command_hint("grep foo file.txt")
+    assert hint == "terminal:grep"
+    assert argv and argv[0] == "grep"
+
+
 def test_detect_ripgrep_alias():
     hint, argv = _detect_command_hint("ripgrep pattern .")
     assert hint == "terminal:rg"
