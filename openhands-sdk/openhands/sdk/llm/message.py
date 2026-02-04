@@ -1,4 +1,7 @@
 import json
+import os
+import time
+import uuid
 from abc import abstractmethod
 from collections.abc import Sequence
 from typing import Any, ClassVar, Literal
@@ -464,6 +467,9 @@ class Message(BaseModel):
         items: list[dict[str, Any]] = []
 
         if self.role == "system":
+            self._log_responses_serialization(
+                vision_enabled=vision_enabled, output_items=items
+            )
             return items
 
         if self.role == "user":
@@ -488,6 +494,9 @@ class Message(BaseModel):
                         }
                     ],
                 }
+            )
+            self._log_responses_serialization(
+                vision_enabled=vision_enabled, output_items=items
             )
             return items
 
@@ -538,6 +547,9 @@ class Message(BaseModel):
                 for tc in self.tool_calls:
                     items.append(tc.to_responses_dict())
 
+            self._log_responses_serialization(
+                vision_enabled=vision_enabled, output_items=items
+            )
             return items
 
         if self.role == "tool":
@@ -549,6 +561,7 @@ class Message(BaseModel):
                     if str(self.tool_call_id).startswith("fc")
                     else f"fc_{self.tool_call_id}"
                 )
+                image_index = 0
                 for c in self.content:
                     if isinstance(c, TextContent):
                         items.append(
@@ -558,9 +571,109 @@ class Message(BaseModel):
                                 "output": c.text,
                             }
                         )
+                    elif isinstance(c, ImageContent) and vision_enabled:
+                        for url in c.image_urls:
+                            # Send image via input_image message to keep binary in the
+                            # right field.
+                            items.append(
+                                {
+                                    "type": "message",
+                                    "role": "user",
+                                    "content": [
+                                        {
+                                            "type": "input_image",
+                                            "image_url": url,
+                                            "detail": "auto",
+                                        }
+                                    ],
+                                }
+                            )
+                            # Minimal function_call_output to keep call threading.
+                            items.append(
+                                {
+                                    "type": "function_call_output",
+                                    "call_id": resp_call_id,
+                                    "output": json.dumps(
+                                        {
+                                            "image_index": image_index,
+                                            "note": (
+                                                "image provided as input_image message"
+                                            ),
+                                        }
+                                    ),
+                                }
+                            )
+                            image_index += 1
+            self._log_responses_serialization(
+                vision_enabled=vision_enabled, output_items=items
+            )
             return items
 
+        self._log_responses_serialization(
+            vision_enabled=vision_enabled, output_items=items
+        )
         return items
+
+    def _log_responses_serialization(
+        self, *, vision_enabled: bool, output_items: list[dict[str, Any]]
+    ) -> None:
+        """Log preview + optional full payload to disk for Responses serialization."""
+        try:
+            logger.info(
+                "📦 Responses dict: role=%s vision_enabled=%s "
+                "content_count=%s output_count=%s",
+                self.role,
+                vision_enabled,
+                len(self.content),
+                len(output_items),
+            )
+
+            preview_obj = {
+                "role": self.role,
+                "vision_enabled": vision_enabled,
+                "content_preview": [
+                    c.model_dump()
+                    for c in list(self.content)[:2]
+                    if hasattr(c, "model_dump")
+                ],
+                "output_preview": output_items[:2],
+            }
+            try:
+                preview_str = json.dumps(preview_obj, ensure_ascii=False)
+            except Exception:
+                preview_str = str(preview_obj)
+            if len(preview_str) > 800:
+                preview_str = f"{preview_str[:800]}...(truncated)"
+            logger.info("📝 Responses dict preview: %s", preview_str)
+
+            log_dir = os.getenv("LLM_PAYLOAD_LOG_PATH", "logs/payloads")
+            if log_dir:
+                os.makedirs(log_dir, exist_ok=True)
+                fname = (
+                    f"responses-dict-{self.role}-"
+                    f"{int(time.time())}-{uuid.uuid4().hex[:6]}.json"
+                )
+                with open(os.path.join(log_dir, fname), "w", encoding="utf-8") as f:
+                    json.dump(
+                        {
+                            "role": self.role,
+                            "vision_enabled": vision_enabled,
+                            "content": [
+                                c.model_dump()
+                                for c in self.content
+                                if hasattr(c, "model_dump")
+                            ],
+                            "output_items": output_items,
+                        },
+                        f,
+                        ensure_ascii=False,
+                        indent=2,
+                    )
+                logger.info("🗃️ Responses dict payload saved to %s", fname)
+        except Exception:
+            logger.exception(
+                "Failed to log Responses dict serialization", exc_info=True
+            )
 
     @classmethod
     def from_llm_chat_message(cls, message: LiteLLMMessage) -> "Message":
