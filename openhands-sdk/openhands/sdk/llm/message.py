@@ -548,7 +548,6 @@ class Message(BaseModel):
                     if str(self.tool_call_id).startswith("fc")
                     else f"fc_{self.tool_call_id}"
                 )
-                image_index = 0
                 for c in self.content:
                     if isinstance(c, TextContent):
                         output_text = self._maybe_truncate_tool_text(c.text)
@@ -561,13 +560,11 @@ class Message(BaseModel):
                         )
                     elif isinstance(c, ImageContent) and vision_enabled:
                         for url in c.image_urls:
-                            # Send image via input_image message to keep binary in the
-                            # right field.
                             items.append(
                                 {
-                                    "type": "message",
-                                    "role": "user",
-                                    "content": [
+                                    "type": "function_call_output",
+                                    "call_id": resp_call_id,
+                                    "output": [
                                         {
                                             "type": "input_image",
                                             "image_url": url,
@@ -576,22 +573,6 @@ class Message(BaseModel):
                                     ],
                                 }
                             )
-                            # Minimal function_call_output to keep call threading.
-                            items.append(
-                                {
-                                    "type": "function_call_output",
-                                    "call_id": resp_call_id,
-                                    "output": json.dumps(
-                                        {
-                                            "image_index": image_index,
-                                            "note": (
-                                                "image provided as input_image message"
-                                            ),
-                                        }
-                                    ),
-                                }
-                            )
-                            image_index += 1
             return items
 
         return items
